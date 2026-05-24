@@ -1,6 +1,6 @@
-// ==== CONFIG - Airtable details (no API key needed here) ====
+// ==== CONFIG - Airtable details ====
 const BASE_ID       = 'appX0OtnSWt8JOKvh';
-const TABLE_ID      = 'tblHkIbvRNOcx6lVQ';
+const TABLE_ID      = 'tblHkIbvRNOcx6lVQ';  // Fleet Management table
 
 // ====================================================
 
@@ -17,26 +17,49 @@ function getApiKey() {
   return AIRTABLE_API_KEY;
 }
 
+// Fill form from URL parameters
+function fillFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const fields = ['Company','Date','Destination','Description','Phone','Address','PickUp','DropOff'];
+  
+  fields.forEach(field => {
+    const value = params.get(field);
+    if (value) {
+      const el = document.querySelector(`[name="${field}"]`);
+      if (el) {
+        if (el.type === 'checkbox') {
+          el.checked = (value.toLowerCase() === 'yes' || value === 'on');
+        } else {
+          el.value = decodeURIComponent(value.replace(/\+/g, ' '));
+        }
+      }
+    }
+  });
+}
+
 const form = document.getElementById('bookingForm');
-// Company name is fixed in the HTML (hidden input & static display)
 const companyInput = document.getElementById('company');
-const companyName = companyInput ? companyInput.value : '';
 const statusEl = document.getElementById('status');
 
 // Auto‑fill today's date (native date input)
 function initDatePicker() {
   const dateInput = document.getElementById('date-picker');
-  if (dateInput) {
+  if (dateInput && !dateInput.value) {
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
   }
 }
 
 // Run after DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initDatePicker);
-} else {
+function init() {
+  fillFromUrl();
   initDatePicker();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
 }
 
 form.addEventListener('submit', async e => {
@@ -59,39 +82,54 @@ form.addEventListener('submit', async e => {
   // Attachments - upload each file then store URLs
   const attachments = formData.getAll('Attachments');
   if (attachments.length) {
-    const uploaded = await Promise.all(attachments.map(uploadFile));
-    fields.Attachments = uploaded.map(u => ({url:u}));
+    try {
+      const uploaded = await Promise.all(attachments.map(uploadFile));
+      fields.Attachments = uploaded.map(u => ({url:u}));
+    } catch (err) {
+      console.error('Upload error:', err);
+    }
   }
 
   try {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      statusEl.textContent = '❌ API key required';
+      return;
+    }
+    
     const resp = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${getApiKey()}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({fields})
     });
-    if (!resp.ok) throw new Error(`Airtable error ${resp.status}`);
+    
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || `Airtable error ${resp.status}`);
+    }
+    
     await resp.json();
     statusEl.textContent = '✅ Job booked!';
     form.reset();
-    // Reset date to today after successful submit
     initDatePicker();
   } catch (err) {
     console.error(err);
-    statusEl.textContent = '❌ Failed - check console';
+    statusEl.textContent = '❌ Failed: ' + err.message;
   }
 });
 
 // Helper - upload a file to Airtable's attachment endpoint
 async function uploadFile(file) {
+  const apiKey = getApiKey();
   const uploadResp = await fetch('https://api.airtable.com/v0/meta/files', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${getApiKey()}` },
+    headers: { Authorization: `Bearer ${apiKey}` },
     body: file
   });
   if (!uploadResp.ok) throw new Error('Upload failed');
   const json = await uploadResp.json();
-  return json.url; // direct URL to the stored file
+  return json.url;
 }
