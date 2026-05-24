@@ -19,37 +19,44 @@
 <input type="hidden" id="company" name="Company" value="Arkwright's Freight Ltd">
 <p style="font-weight: bold; text-align:center; margin-top:0.5rem;">Arkwright's Freight Ltd</p>
 
+<!-- API Key (shown if needed) -->
+<label for="apiKey">Airtable API Key (pat...)</label>
+<input type="password" id="apiKey" placeholder="Enter once, saved for next time" style="margin-bottom:1rem;">
+
 <!-- Date -->
 <label for="date-picker">Date</label>
 <input type="date" id="date-picker" name="Date" required>
 
-<!-- Destination -->
-<label for="destination">Destination</label>
-<input type="text" id="destination" name="Destination" placeholder="e.g. 123 Main St" required>
+<!-- Job #1 -->
+<div id="jobs-container">
+<div class="job-entry" id="job-1">
+<label>Destination</label>
+<input type="text" name="Destination" placeholder="e.g. 123 Main St" required>
 
-<!-- Description -->
-<label for="description">Description</label>
-<textarea id="description" name="Description" rows="3" placeholder="Job details" required></textarea>
+<label>Description</label>
+<textarea name="Description" rows="2" placeholder="Job details" required></textarea>
 
-<!-- Phone -->
-<label for="phone">Phone (optional)</label>
-<input type="tel" id="phone" name="Phone" placeholder="e.g. 022 370 3540">
+<label>Phone (optional)</label>
+<input type="tel" name="Phone" placeholder="e.g. 022 370 3540">
 
-<!-- Address -->
-<label for="address">Address (optional)</label>
-<input type="text" id="address" name="Address" placeholder="e.g. Suite 5, 456 Oak Ave">
+<label>Address (optional)</label>
+<input type="text" name="Address" placeholder="e.g. Suite 5, 456 Oak Ave">
 
-<!-- Pick-up / Drop-off -->
 <div class="checkboxes">
 <label><input type="checkbox" name="PickUp" value="Yes"> Pick-up</label>
 <label><input type="checkbox" name="DropOff" value="Yes"> Drop-off</label>
 </div>
 
-<!-- Attachments -->
-<label for="attachments">Attachments (photos / docs)</label>
-<input type="file" id="attachments" name="Attachments" accept="image/*,application/pdf" multiple>
+<label>Attachments</label>
+<input type="file" name="Attachments" accept="image/*,application/pdf" multiple>
+</div>
+</div>
 
-<button type="submit">Book Job</button>
+<!-- Add Job button -->
+<button type="button" onclick="addJob()" style="background:#f0f0f0;margin:0.5rem 0;">+ Add Another Job</button>
+
+<!-- Submit -->
+<button type="button" onclick="bookAllJobs()">Book All Jobs</button>
 </form>
 
 <section id="status"></section>

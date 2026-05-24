@@ -4,17 +4,21 @@ const TABLE_ID      = 'tblHkIbvRNOcx6lVQ';  // Fleet Management table
 
 // ====================================================
 
-// Prompt for API key when needed - never stored in code
-let AIRTABLE_API_KEY = localStorage.getItem('airtable_api_key');
-
+// Get API key from localStorage or input field
 function getApiKey() {
-  if (!AIRTABLE_API_KEY) {
-    AIRTABLE_API_KEY = prompt('Enter your Airtable API key (pat...):');
-    if (AIRTABLE_API_KEY) {
-      localStorage.setItem('airtable_api_key', AIRTABLE_API_KEY);
+  // First check localStorage
+  let apiKey = localStorage.getItem('airtable_api_key');
+  
+  // If not in localStorage, check the input field
+  if (!apiKey) {
+    const apiKeyInput = document.getElementById('apiKey');
+    if (apiKeyInput && apiKeyInput.value) {
+      apiKey = apiKeyInput.value.trim();
+      localStorage.setItem('airtable_api_key', apiKey);
     }
   }
-  return AIRTABLE_API_KEY;
+  
+  return apiKey;
 }
 
 // Fill form from URL parameters
@@ -38,7 +42,6 @@ function fillFromUrl() {
 }
 
 const form = document.getElementById('bookingForm');
-const companyInput = document.getElementById('company');
 const statusEl = document.getElementById('status');
 
 // Auto‑fill today's date (native date input)
@@ -81,7 +84,7 @@ form.addEventListener('submit', async e => {
 
   // Attachments - upload each file then store URLs
   const attachments = formData.getAll('Attachments');
-  if (attachments.length) {
+  if (attachments.length && attachments[0].name) {
     try {
       const uploaded = await Promise.all(attachments.map(uploadFile));
       fields.Attachments = uploaded.map(u => ({url:u}));
@@ -93,7 +96,8 @@ form.addEventListener('submit', async e => {
   try {
     const apiKey = getApiKey();
     if (!apiKey) {
-      statusEl.textContent = '❌ API key required';
+      statusEl.textContent = '⚠️ Enter your Airtable API key below and try again';
+      document.getElementById('apiKey').focus();
       return;
     }
     
@@ -108,6 +112,12 @@ form.addEventListener('submit', async e => {
     
     if (!resp.ok) {
       const err = await resp.json();
+      if (err.error?.type === 'AUTHENTICATION_REQUIRED') {
+        statusEl.textContent = '⚠️ Invalid API key. Clear saved key and re-enter below.';
+        localStorage.removeItem('airtable_api_key');
+        document.getElementById('apiKey').value = '';
+        return;
+      }
       throw new Error(err.error?.message || `Airtable error ${resp.status}`);
     }
     
@@ -132,4 +142,132 @@ async function uploadFile(file) {
   if (!uploadResp.ok) throw new Error('Upload failed');
   const json = await uploadResp.json();
   return json.url;
+}
+
+// Multi-job support
+let jobCount = 1;
+
+function addJob() {
+  jobCount++;
+  const container = document.getElementById('jobs-container');
+  const jobDiv = document.createElement('div');
+  jobDiv.className = 'job-entry';
+  jobDiv.id = 'job-' + jobCount;
+  jobDiv.innerHTML = `
+    <hr>
+    <h3>Job #${jobCount}</h3>
+    <button type="button" class="remove-btn" onclick="removeJob(${jobCount})">Remove</button>
+    <label>Destination</label>
+    <input type="text" name="Destination_${jobCount}" placeholder="e.g. 123 Main St" required>
+    <label>Description</label>
+    <textarea name="Description_${jobCount}" rows="2" placeholder="Job details" required></textarea>
+    <label>Phone (optional)</label>
+    <input type="tel" name="Phone_${jobCount}" placeholder="e.g. 022 370 3540">
+    <label>Address (optional)</label>
+    <input type="text" name="Address_${jobCount}" placeholder="e.g. Suite 5, 456 Oak Ave">
+    <div class="checkboxes">
+      <label><input type="checkbox" name="PickUp_${jobCount}" value="Yes"> Pick-up</label>
+      <label><input type="checkbox" name="DropOff_${jobCount}" value="Yes"> Drop-off</label>
+    </div>
+    <label>Attachments</label>
+    <input type="file" name="Attachments_${jobCount}" accept="image/*,application/pdf" multiple>
+  `;
+  container.appendChild(jobDiv);
+}
+
+function removeJob(num) {
+  const job = document.getElementById('job-' + num);
+  if (job) job.remove();
+}
+
+function bookAllJobs() {
+  const form = document.getElementById('bookingForm');
+  const statusEl = document.getElementById('status');
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    statusEl.textContent = '⚠️ Enter your Airtable API key below and try again';
+    return;
+  }
+  
+  statusEl.textContent = 'Sending...';
+  
+  const date = document.getElementById('date-picker').value;
+  const company = document.getElementById('company').value;
+  const jobs = [];
+  
+  // Get first (main) job
+  const mainDest = document.querySelector('[name="Destination"]')?.value;
+  const mainDesc = document.querySelector('[name="Description"]')?.value;
+  const mainPhone = document.querySelector('[name="Phone"]')?.value;
+  const mainAddr = document.querySelector('[name="Address"]')?.value;
+  const mainPickUp = document.querySelector('[name="PickUp"]')?.checked;
+  const mainDropOff = document.querySelector('[name="DropOff"]')?.checked;
+  
+  if (mainDest) {
+    jobs.push({
+      Destination: mainDest,
+      Description: mainDesc,
+      Phone: mainPhone,
+      Address: mainAddr,
+      Date: date,
+      Company: company,
+      PickUp: mainPickUp ? 'Yes' : 'No',
+      DropOff: mainDropOff ? 'Yes' : 'No'
+    });
+  }
+  
+  // Get additional jobs
+  for (let i = 2; i <= jobCount; i++) {
+    const jobDiv = document.getElementById('job-' + i);
+    if (jobDiv) {
+      const dest = jobDiv.querySelector(`[name="Destination_${i}"]`)?.value;
+      if (dest) {
+        jobs.push({
+          Destination: dest,
+          Description: jobDiv.querySelector(`[name="Description_${i}"]`)?.value,
+          Phone: jobDiv.querySelector(`[name="Phone_${i}"]`)?.value,
+          Address: jobDiv.querySelector(`[name="Address_${i}"]`)?.value,
+          Date: date,
+          Company: company,
+          PickUp: jobDiv.querySelector(`[name="PickUp_${i}"]`)?.checked ? 'Yes' : 'No',
+          DropOff: jobDiv.querySelector(`[name="DropOff_${i}"]`)?.checked ? 'Yes' : 'No'
+        });
+      }
+    }
+  }
+  
+  if (jobs.length === 0) {
+    statusEl.textContent = '⚠️ Fill in at least one job';
+    return;
+  }
+  
+  Promise.all(jobs.map(job => submitJob(job, apiKey)))
+    .then(() => {
+      statusEl.textContent = `✅ ${jobs.length} job(s) booked!`;
+      form.reset();
+      // Remove extra jobs
+      document.getElementById('jobs-container').innerHTML = '';
+      jobCount = 1;
+      initDatePicker();
+    })
+    .catch(err => {
+      statusEl.textContent = '❌ Failed: ' + err.message;
+    });
+}
+
+async function submitJob(fields, apiKey) {
+  const resp = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({fields})
+  });
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error?.message || `Airtable error ${resp.status}`);
+  }
+  return resp.json();
 }
