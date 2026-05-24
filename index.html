@@ -15,53 +15,38 @@
 
 <main>
 <form id="bookingForm">
-<!-- Fixed Company Name -->
-<input type="hidden" id="company" name="Company" value="Arkwright's Freight Ltd">
-<p style="font-weight: bold; text-align:center; margin-top:0.5rem;">Arkwright's Freight Ltd</p>
+<input type="hidden" id="company" value="Arkwright's Freight Ltd">
+<p style="font-weight:bold;text-align:center;margin-top:0.5rem;">Arkwright's Freight Ltd</p>
 
-<!-- API Key (required) -->
-<label for="apiKey" style="color:red;">⚠️ Airtable API Key (required)</label>
-<input type="text" id="apiKey" placeholder="patV0fJQn5wa1VWMH..." style="margin-bottom:1rem;border:2px solid red;">
+<label style="color:red;">⚠️ API Key</label>
+<input type="text" id="apiKey" placeholder="pat..." style="margin-bottom:1rem;border:2px solid red;">
 
-<!-- Date -->
-<label for="date-picker">Date</label>
-<input type="date" id="date-picker" name="Date" required>
+<label>Date</label>
+<input type="date" id="date-picker" required>
 
-<!-- Job #1 -->
-<div id="jobs-container">
-<div class="job-entry" id="job-1">
-<label>Destination</label>
-<input type="text" name="Name" placeholder="e.g. 123 Main St" required>
+<label>Destination / Name</label>
+<input type="text" name="Name" placeholder="Company name" required>
 
 <label>Description</label>
-<textarea name="Description" rows="2" placeholder="Job details" required></textarea>
+<textarea name="Description" rows="2" placeholder="Job details"></textarea>
 
-<label>Phone (optional)</label>
-<input type="tel" name="Phone" placeholder="e.g. 022 370 3540">
+<label>Phone</label>
+<input type="tel" name="Phone" placeholder="022 370 3540">
 
-<label>Address (optional)</label>
-<input type="text" name="Address" placeholder="e.g. Suite 5, 456 Oak Ave">
+<label>Address</label>
+<input type="text" name="Address" placeholder="Pick up address">
 
 <div class="checkboxes">
-<label><input type="checkbox" name="PickUp" value="Yes"> Pick-up</label>
-<label><input type="checkbox" name="DropOff" value="Yes"> Drop-off</label>
+<label><input type="checkbox" name="PickUp"> Pick-up</label>
+<label><input type="checkbox" name="DropOff"> Drop-off</label>
 </div>
 
-<label>Attachments</label>
-<input type="file" name="Attachments" accept="image/*,application/pdf" multiple>
-</div>
-</div>
-
-<!-- Add Job button -->
-<button type="button" onclick="addJob()" style="background:#f0f0f0;margin:0.5rem 0;">+ Add Another Job</button>
-
-<!-- Submit -->
-<button type="button" onclick="bookAllJobs()">Book All Jobs</button>
+<button type="button" onclick="bookAllJobs()">Book Job</button>
 </form>
 
 <section id="status"></section>
 </main>
 
-<script src="script.js?v=4"></script>
+<script src="script.js?v=5"></script>
 </body>
 </html>
