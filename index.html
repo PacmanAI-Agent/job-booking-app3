@@ -89,9 +89,9 @@ function bookJob() {
   }
   
   let statusVal = 'Todo';
-  if (pickup && dropoff) statusVal = 'Pick up + Drop off';
-  else if (pickup) statusVal = 'Pick up';
-  else if (dropoff) statusVal = 'Drop off';
+  if (pickup && dropoff) statusVal = 'In progress';
+  else if (pickup) statusVal = 'In progress';
+  else if (dropoff) statusVal = 'In progress';
   
   let fullDesc = desc || '';
   if (phone) fullDesc += (fullDesc ? '\n' : '') + 'Phone: ' + phone;
