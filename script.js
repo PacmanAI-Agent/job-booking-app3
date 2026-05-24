@@ -47,7 +47,6 @@ function bookAllJobs() {
   statusEl.textContent = 'Sending...';
   
   const date = document.getElementById('date-picker').value;
-  const company = document.getElementById('company').value;
   
   // Get job values - map to Airtable field names
   const name = document.querySelector('[name="Name"]')?.value;
@@ -77,8 +76,7 @@ function bookAllJobs() {
     Description: fullDesc,
     'Pick Up Address': addr,
     'Pick up Date': date,
-    Status: status,
-    Company: company
+    Status: status
   };
   
   submitJob(fields, apiKey)
