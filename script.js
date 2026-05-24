@@ -4,18 +4,20 @@ const TABLE_ID      = 'tblHkIbvRNOcx6lVQ';  // Fleet Management table
 
 // ====================================================
 
-// Get API key from localStorage or input field
+// Get API key from input field or localStorage
 function getApiKey() {
-  // First check localStorage
-  let apiKey = localStorage.getItem('airtable_api_key');
+  // Always check input field first (user might just entered it)
+  const apiKeyInput = document.getElementById('apiKey');
+  let apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   
-  // If not in localStorage, check the input field
+  // If empty, check localStorage
   if (!apiKey) {
-    const apiKeyInput = document.getElementById('apiKey');
-    if (apiKeyInput && apiKeyInput.value) {
-      apiKey = apiKeyInput.value.trim();
-      localStorage.setItem('airtable_api_key', apiKey);
-    }
+    apiKey = localStorage.getItem('airtable_api_key') || '';
+  }
+  
+  // Save to localStorage if we have a key
+  if (apiKey && apiKeyInput) {
+    localStorage.setItem('airtable_api_key', apiKey);
   }
   
   return apiKey;
