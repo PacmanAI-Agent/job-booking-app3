@@ -1,0 +1,77 @@
+/* Simple, mobile-friendly styling */
+:root {
+  --primary: #0066CC; /* teal – change if you want another colour */
+  --bg: #f9f9f9;
+  --text: #333;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header {
+  background: var(--primary);
+  color: white;
+  text-align: center;
+  padding: 1rem 0;
+}
+.logo {
+  max-height: 80px;
+  display: block;
+  margin: 0 auto 0.5rem;
+}
+main { padding: 1rem; }
+
+form { max-width: 400px; margin: 0 auto; }
+label { display: block; margin-top: 1rem; font-weight: 600; }
+input, select, textarea, button {
+  width: 100%;
+  padding: .5rem;
+  margin-top: .3rem;
+  font-size: 1rem;
+}
+button {
+  margin-top: 1.5rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: .3rem;
+}
+button:active { opacity: .9; }
+
+.checkboxes {
+  /* existing */
+}
+
+/* Date spinner layout */
+.date-spinner {
+  display: flex;
+  align-items: center;
+  margin-top: .5rem;
+}
+.date-spinner input {
+  flex: 1;
+}
+.date-spinner button {
+  width: 2rem;
+  height: 2rem;
+  margin-left: .3rem;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+/* Inline mobiscroll wheel */
+.date-wheel {
+  margin-top: .5rem;
+}
+
+  display: flex;
+  gap: 1rem;
+  margin-top: .5rem;
+}
+.checkboxes label { font-weight: normal; }
+#status { margin-top: 1rem; text-align: center; }
