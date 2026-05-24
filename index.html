@@ -40,12 +40,88 @@
 <label><input type="checkbox" name="DropOff"> Drop-off</label>
 </div>
 
-<button type="button" onclick="bookAllJobs()">Book Job</button>
+<button type="button" onclick="bookJob()">Book Job</button>
 </form>
 
 <section id="status"></section>
 </main>
 
-<script src="script.js?20260524"></script>
+<script>
+const BASE_ID = 'appX0OtnSWt8JOKvh';
+const TABLE_ID = 'tblHkIbvRNOcx6lVQ';
+
+function getApiKey() {
+  const input = document.getElementById('apiKey');
+  let key = input?.value?.trim();
+  if (key) localStorage.setItem('airtable_api_key', key);
+  if (!key) key = localStorage.getItem('airtable_api_key');
+  return key;
+}
+
+// Set today's date
+const dateInput = document.getElementById('date-picker');
+if (dateInput && !dateInput.value) {
+  dateInput.value = new Date().toISOString().split('T')[0];
+}
+
+function bookJob() {
+  const statusEl = document.getElementById('status');
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    statusEl.textContent = '⚠️ Enter your Airtable API key';
+    return;
+  }
+  
+  statusEl.textContent = 'Sending...';
+  
+  const date = document.getElementById('date-picker').value;
+  const name = document.querySelector('[name="Name"]')?.value;
+  const desc = document.querySelector('[name="Description"]')?.value;
+  const phone = document.querySelector('[name="Phone"]')?.value;
+  const addr = document.querySelector('[name="Address"]')?.value;
+  const pickup = document.querySelector('[name="PickUp"]')?.checked;
+  const dropoff = document.querySelector('[name="DropOff"]')?.checked;
+  
+  if (!name) {
+    statusEl.textContent = '⚠️ Enter destination';
+    return;
+  }
+  
+  let statusVal = 'Todo';
+  if (pickup && dropoff) statusVal = 'Pick up + Drop off';
+  else if (pickup) statusVal = 'Pick up';
+  else if (dropoff) statusVal = 'Drop off';
+  
+  let fullDesc = desc || '';
+  if (phone) fullDesc += (fullDesc ? '\n' : '') + 'Phone: ' + phone;
+  
+  const fields = {
+    Name: name,
+    Description: fullDesc,
+    'Pick Up Address': addr,
+    'Pick up Date': date,
+    Status: statusVal
+  };
+  
+  fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({fields})
+  })
+  .then(r => r.json())
+  .then(data => {
+    statusEl.textContent = '✅ Job booked!';
+    document.getElementById('bookingForm').reset();
+    dateInput.value = new Date().toISOString().split('T')[0];
+  })
+  .catch(err => {
+    statusEl.textContent = '❌ ' + (err.message || 'Error');
+  });
+}
+</script>
 </body>
 </html>
