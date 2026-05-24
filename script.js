@@ -190,7 +190,6 @@ function removeJob(num) {
 }
 
 function bookAllJobs() {
-  const form = document.getElementById('bookingForm');
   const statusEl = document.getElementById('status');
   const apiKey = getApiKey();
   
