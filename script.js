@@ -6,23 +6,20 @@ const TABLE_ID      = 'tblHkIbvRNOcx6lVQ';  // Fleet Management table
 
 // Get API key from input field or localStorage
 function getApiKey() {
-  // Try to find input field - check multiple ways
   let apiKeyInput = document.getElementById('apiKey');
   if (!apiKeyInput) {
     apiKeyInput = document.querySelector('input#apiKey');
   }
   if (!apiKeyInput) {
-    apiKeyInput = document.querySelector('input[type="password"]');
+    apiKeyInput = document.querySelector('input[type="text"]');
   }
   
   let apiKey = '';
   if (apiKeyInput && apiKeyInput.value) {
     apiKey = apiKeyInput.value.trim();
-    // Save to localStorage
     localStorage.setItem('airtable_api_key', apiKey);
   }
   
-  // If still empty, check localStorage
   if (!apiKey) {
     apiKey = localStorage.getItem('airtable_api_key') || '';
   }
@@ -33,7 +30,7 @@ function getApiKey() {
 // Fill form from URL parameters
 function fillFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const fields = ['Company','Date','Destination','Description','Phone','Address','PickUp','DropOff'];
+  const fields = ['Company','Date','Name','Description','Phone','Pick Up Address','Drop Off Address','PickUp','DropOff'];
   
   fields.forEach(field => {
     const value = params.get(field);
@@ -74,83 +71,132 @@ if (document.readyState === 'loading') {
   init();
 }
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  statusEl.textContent = 'Sending...';
-
-  const formData = new FormData(form);
-  const fields = {};
-
-  // Simple scalar fields (including Company)
-  ['Destination','Address','Description','Phone','Date','Company'].forEach(k => {
-    const v = formData.get(k);
-    if (v) fields[k] = v;
-  });
-
-  // Checkboxes
-  fields.PickUp = formData.get('PickUp') ? 'Yes' : 'No';
-  fields.DropOff = formData.get('DropOff') ? 'Yes' : 'No';
-
-  // Attachments - upload each file then store URLs
-  const attachments = formData.getAll('Attachments');
-  if (attachments.length && attachments[0].name) {
-    try {
-      const uploaded = await Promise.all(attachments.map(uploadFile));
-      fields.Attachments = uploaded.map(u => ({url:u}));
-    } catch (err) {
-      console.error('Upload error:', err);
-    }
-  }
-
-  try {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      statusEl.textContent = '⚠️ Enter your Airtable API key below and try again';
-      document.getElementById('apiKey').focus();
-      return;
-    }
-    
-    const resp = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({fields})
-    });
-    
-    if (!resp.ok) {
-      const err = await resp.json();
-      if (err.error?.type === 'AUTHENTICATION_REQUIRED') {
-        statusEl.textContent = '⚠️ Invalid API key. Clear saved key and re-enter below.';
-        localStorage.removeItem('airtable_api_key');
-        document.getElementById('apiKey').value = '';
-        return;
-      }
-      throw new Error(err.error?.message || `Airtable error ${resp.status}`);
-    }
-    
-    await resp.json();
-    statusEl.textContent = '✅ Job booked!';
-    form.reset();
-    initDatePicker();
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = '❌ Failed: ' + err.message;
-  }
-});
-
-// Helper - upload a file to Airtable's attachment endpoint
-async function uploadFile(file) {
+function bookAllJobs() {
+  const statusEl = document.getElementById('status');
   const apiKey = getApiKey();
-  const uploadResp = await fetch('https://api.airtable.com/v0/meta/files', {
+  
+  if (!apiKey) {
+    statusEl.textContent = '⚠️ Enter your Airtable API key below and try again';
+    return;
+  }
+  
+  statusEl.textContent = 'Sending...';
+  
+  const date = document.getElementById('date-picker').value;
+  const company = document.getElementById('company').value;
+  const jobs = [];
+  
+  // Get first (main) job - map to correct Airtable field names
+  const mainDest = document.querySelector('[name="Name"]')?.value || document.querySelector('[name="Destination"]')?.value;
+  const mainDesc = document.querySelector('[name="Description"]')?.value;
+  const mainPhone = document.querySelector('[name="Phone"]')?.value;
+  const mainAddr = document.querySelector('[name="Address"]')?.value;
+  const mainPickUp = document.querySelector('[name="PickUp"]')?.checked;
+  const mainDropOff = document.querySelector('[name="DropOff"]')?.checked;
+  
+  if (mainDest) {
+    // Determine status based on checkboxes
+    let status = 'Todo';
+    if (mainPickUp && mainDropOff) status = 'Pick up + Drop off';
+    else if (mainPickUp) status = 'Pick up';
+    else if (mainDropOff) status = 'Drop off';
+    
+    jobs.push({
+      Name: mainDest,
+      Description: mainDesc + (mainPhone ? '\nPhone: ' + mainPhone : ''),
+      'Pick Up Address': mainAddr,
+      'Pick up Date': date,
+      Status: status,
+      Company: company
+    });
+  }
+  
+  // Get additional jobs
+  for (let i = 2; i <= jobCount; i++) {
+    const jobDiv = document.getElementById('job-' + i);
+    if (jobDiv) {
+      const dest = jobDiv.querySelector(`[name="Name_${i}"]`)?.value || jobDiv.querySelector(`[name="Destination_${i}"]`)?.value;
+      if (dest) {
+        const desc = jobDiv.querySelector(`[name="Description_${i}"]`)?.value;
+        const phone = jobDiv.querySelector(`[name="Phone_${i}"]`)?.value;
+        const addr = jobDiv.querySelector(`[name="Address_${i}"]`)?.value;
+        const pickup = jobDiv.querySelector(`[name="PickUp_${i}"]`)?.checked;
+        const dropoff = jobDiv.querySelector(`[name="DropOff_${i}"]`)?.checked;
+        
+        let status = 'Todo';
+        if (pickup && dropoff) status = 'Pick up + Drop off';
+        else if (pickup) status = 'Pick up';
+        else if (dropoff) status = 'Drop off';
+        
+        jobs.push({
+          Name: dest,
+          Description: desc + (phone ? '\nPhone: ' + phone : ''),
+          'Pick Up Address': addr,
+          'Pick up Date': date,
+          Status: status,
+          Company: company
+        });
+      }
+    }
+  }
+  
+  if (jobs.length === 0) {
+    statusEl.textContent = '⚠️ Fill in at least one job';
+    return;
+  }
+  
+  Promise.all(jobs.map(job => submitJob(job, apiKey)))
+    .then(() => {
+      statusEl.textContent = `✅ ${jobs.length} job(s) booked!`;
+      form.reset();
+      // Remove extra jobs
+      document.getElementById('jobs-container').innerHTML = getJob1HTML();
+      jobCount = 1;
+      initDatePicker();
+    })
+    .catch(err => {
+      statusEl.textContent = '❌ Failed: ' + err.message;
+    });
+}
+
+function getJob1HTML() {
+  return `<div class="job-entry" id="job-1">
+<label>Destination</label>
+<input type="text" name="Name" placeholder="e.g. 123 Main St" required>
+
+<label>Description</label>
+<textarea name="Description" rows="2" placeholder="Job details" required></textarea>
+
+<label>Phone (optional)</label>
+<input type="tel" name="Phone" placeholder="e.g. 022 370 3540">
+
+<label>Address (optional)</label>
+<input type="text" name="Address" placeholder="e.g. Suite 5, 456 Oak Ave">
+
+<div class="checkboxes">
+<label><input type="checkbox" name="PickUp" value="Yes"> Pick-up</label>
+<label><input type="checkbox" name="DropOff" value="Yes"> Drop-off</label>
+</div>
+
+<label>Attachments</label>
+<input type="file" name="Attachments" accept="image/*,application/pdf" multiple>
+</div>`;
+}
+
+async function submitJob(fields, apiKey) {
+  const resp = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: file
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({fields})
   });
-  if (!uploadResp.ok) throw new Error('Upload failed');
-  const json = await uploadResp.json();
-  return json.url;
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error?.message || `Airtable error ${resp.status}`);
+  }
+  return resp.json();
 }
 
 // Multi-job support
@@ -167,7 +213,7 @@ function addJob() {
     <h3>Job #${jobCount}</h3>
     <button type="button" class="remove-btn" onclick="removeJob(${jobCount})">Remove</button>
     <label>Destination</label>
-    <input type="text" name="Destination_${jobCount}" placeholder="e.g. 123 Main St" required>
+    <input type="text" name="Name_${jobCount}" placeholder="e.g. 123 Main St" required>
     <label>Description</label>
     <textarea name="Description_${jobCount}" rows="2" placeholder="Job details" required></textarea>
     <label>Phone (optional)</label>
@@ -187,97 +233,4 @@ function addJob() {
 function removeJob(num) {
   const job = document.getElementById('job-' + num);
   if (job) job.remove();
-}
-
-function bookAllJobs() {
-  const statusEl = document.getElementById('status');
-  const apiKey = getApiKey();
-  
-  alert('Testing API key: ' + (apiKey ? 'FOUND' : 'NOT FOUND'));
-  
-  if (!apiKey) {
-    statusEl.textContent = '⚠️ Enter your Airtable API key below and try again';
-    return;
-  }
-  
-  statusEl.textContent = 'Sending...';
-  
-  const date = document.getElementById('date-picker').value;
-  const company = document.getElementById('company').value;
-  const jobs = [];
-  
-  // Get first (main) job
-  const mainDest = document.querySelector('[name="Destination"]')?.value;
-  const mainDesc = document.querySelector('[name="Description"]')?.value;
-  const mainPhone = document.querySelector('[name="Phone"]')?.value;
-  const mainAddr = document.querySelector('[name="Address"]')?.value;
-  const mainPickUp = document.querySelector('[name="PickUp"]')?.checked;
-  const mainDropOff = document.querySelector('[name="DropOff"]')?.checked;
-  
-  if (mainDest) {
-    jobs.push({
-      Destination: mainDest,
-      Description: mainDesc,
-      Phone: mainPhone,
-      Address: mainAddr,
-      Date: date,
-      Company: company,
-      PickUp: mainPickUp ? 'Yes' : 'No',
-      DropOff: mainDropOff ? 'Yes' : 'No'
-    });
-  }
-  
-  // Get additional jobs
-  for (let i = 2; i <= jobCount; i++) {
-    const jobDiv = document.getElementById('job-' + i);
-    if (jobDiv) {
-      const dest = jobDiv.querySelector(`[name="Destination_${i}"]`)?.value;
-      if (dest) {
-        jobs.push({
-          Destination: dest,
-          Description: jobDiv.querySelector(`[name="Description_${i}"]`)?.value,
-          Phone: jobDiv.querySelector(`[name="Phone_${i}"]`)?.value,
-          Address: jobDiv.querySelector(`[name="Address_${i}"]`)?.value,
-          Date: date,
-          Company: company,
-          PickUp: jobDiv.querySelector(`[name="PickUp_${i}"]`)?.checked ? 'Yes' : 'No',
-          DropOff: jobDiv.querySelector(`[name="DropOff_${i}"]`)?.checked ? 'Yes' : 'No'
-        });
-      }
-    }
-  }
-  
-  if (jobs.length === 0) {
-    statusEl.textContent = '⚠️ Fill in at least one job';
-    return;
-  }
-  
-  Promise.all(jobs.map(job => submitJob(job, apiKey)))
-    .then(() => {
-      statusEl.textContent = `✅ ${jobs.length} job(s) booked!`;
-      form.reset();
-      // Remove extra jobs
-      document.getElementById('jobs-container').innerHTML = '';
-      jobCount = 1;
-      initDatePicker();
-    })
-    .catch(err => {
-      statusEl.textContent = '❌ Failed: ' + err.message;
-    });
-}
-
-async function submitJob(fields, apiKey) {
-  const resp = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({fields})
-  });
-  if (!resp.ok) {
-    const err = await resp.json();
-    throw new Error(err.error?.message || `Airtable error ${resp.status}`);
-  }
-  return resp.json();
 }
