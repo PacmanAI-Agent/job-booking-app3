@@ -193,6 +193,8 @@ function bookAllJobs() {
   const statusEl = document.getElementById('status');
   const apiKey = getApiKey();
   
+  alert('Testing API key: ' + (apiKey ? 'FOUND' : 'NOT FOUND'));
+  
   if (!apiKey) {
     statusEl.textContent = '⚠️ Enter your Airtable API key below and try again';
     return;
